@@ -12,26 +12,50 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const zod_1 = __importDefault(require("zod"));
-const trpc_1 = require("./trpc");
+exports.router = exports.publicProcedure = void 0;
+exports.createContext = createContext;
 const standalone_1 = require("@trpc/server/adapters/standalone");
+const server_1 = require("@trpc/server");
+const zod_1 = __importDefault(require("zod"));
+// 🧠 1️⃣ Create Context (runs per request)
+function createContext() {
+    return __awaiter(this, void 0, void 0, function* () {
+        // Dummy user (pretend this came from a JWT or session)
+        const user = {
+            id: "123",
+            name: "John Doe",
+            role: "admin",
+        };
+        return { user }; // available as ctx.user
+    });
+}
+// 🛠️ 2️⃣ Initialize tRPC with context
+const t = server_1.initTRPC.context().create();
+exports.publicProcedure = t.procedure;
+exports.router = t.router;
+// 🧱 3️⃣ Define your input schema
 const todoInputType = zod_1.default.object({
     title: zod_1.default.string(),
     description: zod_1.default.string(),
 });
-const appRouter = (0, trpc_1.router)({
-    createTodo: trpc_1.publicProcedure
+// 📦 4️⃣ Create router
+const appRouter = (0, exports.router)({
+    createTodo: exports.publicProcedure
         .input(todoInputType)
-        .mutation((opts) => __awaiter(void 0, void 0, void 0, function* () {
-        const title = opts.input.title;
-        const description = opts.input.description;
+        .mutation((_a) => __awaiter(void 0, [_a], void 0, function* ({ input, ctx }) {
+        // You can now access ctx.user here
+        console.log("User from context:", ctx.user);
         return {
             id: "1",
-            description,
+            title: input.title,
+            description: input.description,
+            createdBy: ctx.user.name,
         };
     })),
 });
+// 🚀 5️⃣ Create HTTP Server
 const server = (0, standalone_1.createHTTPServer)({
     router: appRouter,
+    createContext, // attach context
 });
 server.listen(3000);
